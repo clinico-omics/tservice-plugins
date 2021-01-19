@@ -8,7 +8,6 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.8"
 multiqc = "^1.9"
-rnaseq-report = {git = "https://github.com/clinico-omics/quartet-rnaseq-report"}
 quartet-dnaseq-report = {git = "https://github.com/clinico-omics/quartet-dnaseq-report"}
 
 [tool.poetry.dev-dependencies]
