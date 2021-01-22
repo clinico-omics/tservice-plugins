@@ -132,14 +132,14 @@
         (let [files (ff/batch-filter-files data-dir [".*call-fastqc/.*.zip"
                                                      ".*call-fastqscreen/.*screen.txt"
                                                      ".*call-qualimap/.*bamqc"
-                                                     ".*call-qualimap/.*bamqc_qualimap.zip"
+                                                     ".*call-qualimap/.*bamqc_qualimap.tar.gz"
                                                      ".*call-qualimap/.*RNAseq"
-                                                     ".*call-qualimap/.*RNAseq_qualimap.zip"])
+                                                     ".*call-qualimap/.*RNAseq_qualimap.tar.gz"])
               multiqc-dir (fs-lib/join-paths dest-dir "multiqc")
               config (fs-lib/join-paths (:tservice-plugin-path env) "plugins/config/multiqc_report.yaml")]
           (fs-lib/create-directories! multiqc-dir)
           (ff/copy-files! files multiqc-dir {:replace-existing true})
-          (doseq [file (ff/batch-filter-files multiqc-dir [".*bamqc_qualimap.zip" ".*RNAseq_qualimap.zip"])]
+          (doseq [file (ff/batch-filter-files multiqc-dir [".*bamqc_qualimap.tar.gz" ".*RNAseq_qualimap.tar.gz"])]
             (decompression-tar file))
           (let [multiqc-result (mq/multiqc multiqc-dir dest-dir {:title "MultiQC Report" :template "default" :config config})
                 result {:status (:status multiqc-result)
