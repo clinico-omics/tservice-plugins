@@ -58,7 +58,6 @@
                                     from-path (correct-filepath filepath)
                                     uuid (u/uuid)
                                     relative-dir (fs-lib/join-paths "download" uuid)
-                                    output-file (fs-lib/join-paths relative-dir "fpkm.csv")
                                     report-file (fs-lib/join-paths relative-dir "multiqc_report.html")
                                     log-path (fs-lib/join-paths relative-dir "log")
                                     to-dir (fs-lib/join-paths workdir relative-dir)]
@@ -71,7 +70,7 @@
                                                         :enable-multiqc enable_multiqc
                                                         :dest-dir to-dir})
                                 {:status 201
-                                 :body {:output_file output-file
+                                 :body {:output_file relative-dir
                                         :report report-file
                                         :log_url log-path}}))}
             :get {:summary "A json shema for merge-exp."
@@ -83,7 +82,7 @@
    :manifest {:description "Merge expression table for rna-seq."
               :category "Tool"
               :home "https://github.com/clinico-omics/tservice-plugins"
-              :name "Merge Expression Table fro RNA-Seq"
+              :name "Merge Expression Table for RNA-Seq"
               :source "PGx"
               :short_name "merge-rnaseq-exp"
               :icons [{:src "", :type "image/png", :sizes "192x192"}
@@ -115,19 +114,30 @@
       {:status status
        :msg msg})))
 
-(defn- mergeexp!
+(defn- merge-exp!
+  [data-dir patterns dest-dir output-file]
+  (let [files (ff/batch-filter-files data-dir patterns)]
+    (log/info "Merge these files: " files)
+    (fs-lib/create-directories! dest-dir)
+    (log/info "Merge gene experiment files from ballgown directory to a experiment table: " dest-dir output-file)
+    (ff/copy-files! files dest-dir {:replace-existing true})
+    (me/merge-exp-files! (ff/list-files dest-dir {:mode "file"}) output-file)))
+
+(defn- merge-exp-event!
   [data-dir dest-dir excludes enable-multiqc]
   ;; TODO: filter excludes?
-  (let [files (ff/batch-filter-files data-dir [".*call-ballgown/.*.txt"])
-        ballgown-dir (fs-lib/join-paths dest-dir "ballgown")
-        log-path (fs-lib/join-paths dest-dir "log")
-        output-file (fs-lib/join-paths dest-dir "fpkm.csv")]
+  (let [log-path (fs-lib/join-paths dest-dir "log")]
     (try
-      (fs-lib/create-directories! ballgown-dir)
-      (log/info "Merge these files: " files)
-      (log/info "Merge gene experiment files from ballgown directory to a experiment table: " ballgown-dir output-file)
-      (ff/copy-files! files ballgown-dir {:replace-existing true})
-      (me/merge-exp-files! (ff/list-files ballgown-dir {:mode "file"}) output-file)
+      ;; Merge ballgown files
+      (merge-exp! data-dir 
+                  [".*call-ballgown/.*.txt"] 
+                  (fs-lib/join-paths dest-dir "ballgown") 
+                  (fs-lib/join-paths dest-dir "fpkm.csv"))
+      ;; Merge count files
+      (merge-exp! data-dir 
+                  [".*call-count/.*_gene_count_matrix.csv"] 
+                  (fs-lib/join-paths dest-dir "count") 
+                  (fs-lib/join-paths dest-dir "count.csv"))
       (if enable-multiqc
         (let [files (ff/batch-filter-files data-dir [".*call-fastqc/.*.zip"
                                                      ".*call-fastqscreen/.*screen.txt"
@@ -161,7 +171,7 @@
     (when-let [{topic :topic object :item} mergeexp-event]
       ;; TODO: only if the definition changed??
       (case (events/topic->model topic)
-        "mergeexp" (mergeexp! (:data-dir object) (:dest-dir object) (:excludes object) (:enable-multiqc object))))
+        "mergeexp" (merge-exp-event! (:data-dir object) (:dest-dir object) (:excludes object) (:enable-multiqc object))))
     (catch Throwable e
       (log/warn (format "Failed to process mergeexp event. %s" (:topic mergeexp-event)) e))))
 
