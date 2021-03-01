@@ -115,13 +115,13 @@
        :msg msg})))
 
 (defn- merge-exp!
-  [data-dir patterns dest-dir output-file & {:keys [id] :or {id :GENE_ID}}]
+  [data-dir patterns dest-dir output-file]
   (let [files (ff/batch-filter-files data-dir patterns)]
     (log/info "Merge these files: " files)
     (fs-lib/create-directories! dest-dir)
     (log/info "Merge gene experiment files from ballgown directory to a experiment table: " dest-dir output-file)
     (ff/copy-files! files dest-dir {:replace-existing true})
-    (me/merge-exp-files! (ff/list-files dest-dir {:mode "file"}) output-file id)))
+    (me/merge-exp-files! (ff/list-files dest-dir {:mode "file"}) output-file)))
 
 (defn- merge-exp-event!
   [data-dir dest-dir excludes enable-multiqc]
@@ -132,14 +132,12 @@
       (merge-exp! data-dir 
                   [".*call-ballgown/.*.txt"] 
                   (fs-lib/join-paths dest-dir "ballgown") 
-                  (fs-lib/join-paths dest-dir "fpkm.csv")
-                  :id :GENE_ID)
+                  (fs-lib/join-paths dest-dir "fpkm.csv"))
       ;; Merge count files
       (merge-exp! data-dir 
                   [".*call-count/.*_gene_count_matrix.csv"] 
                   (fs-lib/join-paths dest-dir "count") 
-                  (fs-lib/join-paths dest-dir "count.csv")
-                  :id :gene_id)
+                  (fs-lib/join-paths dest-dir "count.csv"))
       (if enable-multiqc
         (let [files (ff/batch-filter-files data-dir [".*call-fastqc/.*.zip"
                                                      ".*call-fastqscreen/.*screen.txt"
